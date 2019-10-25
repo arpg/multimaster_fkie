@@ -31,7 +31,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import time
-import xmlrpclib
+import xmlrpc.client
 
 import rospy
 from .common import get_hostname
@@ -115,7 +115,7 @@ def _get_topic(masteruri, ttype, wait=True, check_host=True):
     '''
     result = []
     while not result and not rospy.is_shutdown():
-        master = xmlrpclib.ServerProxy(masteruri)
+        master = xmlrpc.client.ServerProxy(masteruri)
         # get the system state to resolve the published nodes
         code, _, state = master.getSystemState(rospy.get_name())
         # read topic types
@@ -223,7 +223,7 @@ def _get_service(masteruri, name, wait=True, check_host=True):
     '''
     result = []
     while not result and not rospy.is_shutdown():
-        master = xmlrpclib.ServerProxy(masteruri)
+        master = xmlrpc.client.ServerProxy(masteruri)
         code, msg, val = master.getSystemState(rospy.get_name())
         if code == 1:
             pubs, subs, srvs = val

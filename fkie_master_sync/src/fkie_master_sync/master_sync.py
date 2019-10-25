@@ -30,13 +30,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from __future__ import division, absolute_import, print_function, unicode_literals
+
 
 import socket
 import threading
 import time
 import uuid
-import xmlrpclib
+import xmlrpc.client
 
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from fkie_multimaster_msgs.msg import MasterState  # , LinkState, LinkStatesStamped, MasterState, ROSMaster, SyncMasterInfo, SyncTopicInfo
@@ -134,7 +134,7 @@ class Main(object):
                                 self.update_master(m.name, m.uri, m.timestamp, m.timestamp_local, m.discoverer_name, m.monitoruri, m.online)
                             for key in set(self.masters.keys()) - set(masters):
                                 self.remove_master(self.masters[key].name)
-                        except rospy.ServiceException, e:
+                        except rospy.ServiceException as e:
                             rospy.logwarn("ERROR Service call 'list_masters' failed: %s", str(e))
                 except:
                     import traceback
@@ -198,13 +198,13 @@ class Main(object):
         '''
         try:
             socket.setdefaulttimeout(3)
-            own_monitor = xmlrpclib.ServerProxy(monitoruri)
+            own_monitor = xmlrpc.client.ServerProxy(monitoruri)
             self.__own_state = own_monitor.masterInfo()
             own_state = MasterInfo.from_list(self.__own_state)
             socket.setdefaulttimeout(None)
             with self.__lock:
                 # update the state for all sync threads
-                for (_, s) in self.masters.iteritems():
+                for (_, s) in self.masters.items():
                     s.set_own_masterstate(own_state, self.__sync_topics_on_demand)
                 self.__timestamp_local = own_state.timestamp_local
         except:
@@ -255,11 +255,11 @@ class Main(object):
                 self.update_timer.cancel()
             # unregister from update topics
             rospy.loginfo("  Unregister from master discovery...")
-            for (_, v) in self.sub_changes.iteritems():
+            for (_, v) in self.sub_changes.items():
                 v.unregister()
             self.own_state_getter = None
             # Stop all sync threads
-            for key in self.masters.keys():
+            for key in list(self.masters.keys()):
                 rospy.loginfo("  Remove master: %s", key)
                 self.remove_master(key)
         # wait for their ending
@@ -275,7 +275,7 @@ class Main(object):
         masters = list()
         try:
             with self.__lock:
-                for (_, s) in self.masters.iteritems():
+                for (_, s) in self.masters.items():
                     masters.append(s.get_sync_info())
         except:
             import traceback
@@ -329,7 +329,7 @@ class Main(object):
     def _update_diagnostics_state(self):
         md5_warnings = {}
         ttype_warnings = {}
-        for mname, mth in self.masters.items():
+        for mname, mth in list(self.masters.items()):
             warnings = mth.get_md5warnigs()
             if warnings:
                 md5_warnings[mname] = warnings
@@ -343,13 +343,13 @@ class Main(object):
             da = DiagnosticArray()
             if md5_warnings:
                 # add warnings for all hosts with topic types with different md5sum
-                for mname, warnings in md5_warnings.items():
+                for mname, warnings in list(md5_warnings.items()):
                     diag_state = DiagnosticStatus()
                     diag_state.level = level
                     diag_state.name = rospy.get_name()
                     diag_state.message = "Wrong topics md5sum @%s" % mname
                     diag_state.hardware_id = mname
-                    for (topicname, _node, _nodeuri), ttype in warnings.items():
+                    for (topicname, _node, _nodeuri), ttype in list(warnings.items()):
                         key = KeyValue()
                         key.key = topicname
                         key.value = ttype
@@ -357,13 +357,13 @@ class Main(object):
                     da.status.append(diag_state)
             elif ttype_warnings:
                 # add warnings if a topic with different type is synchrinozied to local host
-                for mname, warnings in ttype_warnings.items():
+                for mname, warnings in list(ttype_warnings.items()):
                     diag_state = DiagnosticStatus()
                     diag_state.level = level
                     diag_state.name = rospy.get_name()
                     diag_state.message = "Wrong topics type @%s" % mname
                     diag_state.hardware_id = mname
-                    for (topicname, _node, _nodeuri), ttype in warnings.items():
+                    for (topicname, _node, _nodeuri), ttype in list(warnings.items()):
                         key = KeyValue()
                         key.key = topicname
                         key.value = ttype

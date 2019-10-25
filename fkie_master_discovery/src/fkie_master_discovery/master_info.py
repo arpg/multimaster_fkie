@@ -551,7 +551,7 @@ class ServiceInfo(object):
                 pass
             else:
                 import socket
-                import cStringIO
+                import io
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 try:
                     # connect to service and probe it to get the headers
@@ -560,7 +560,7 @@ class ServiceInfo(object):
                     header = {'probe': '1', 'md5sum': '*',
                               'callerid': rospy.get_name(), 'service': self.name}
                     roslib.network.write_ros_handshake_header(s, header)
-                    srv_type = roslib.network.read_ros_handshake_header(s, cStringIO.StringIO(), 2048)
+                    srv_type = roslib.network.read_ros_handshake_header(s, io.StringIO(), 2048)
                     srv_type = srv_type['type']
                 except socket.error:
                     pass
@@ -812,7 +812,7 @@ class MasterInfo(object):
         :rtype: list of strings
         '''
 #    @return: the list with node names
-        return self.__nodelist.keys()
+        return list(self.__nodelist.keys())
 
     @property
     def node_uris(self):
@@ -822,7 +822,7 @@ class MasterInfo(object):
         :rtype: list of strings
         '''
         uris = []
-        for node in self.__nodelist.itervalues():
+        for node in self.__nodelist.values():
             uris.append(node.uri)
         return uris
 
@@ -857,7 +857,7 @@ class MasterInfo(object):
 
         :rtype: list of strings
         '''
-        return self.__topiclist.keys()
+        return list(self.__topiclist.keys())
 
     @property
     def services(self):
@@ -890,7 +890,7 @@ class MasterInfo(object):
 
         :rtype: list of strings
         '''
-        return self.__servicelist.keys()
+        return list(self.__servicelist.keys())
 
     @property
     def service_uris(self):
@@ -900,7 +900,7 @@ class MasterInfo(object):
         :rtype: list of strings
         '''
         uris = []
-        for service in self.__servicelist.itervalues():
+        for service in self.__servicelist.values():
             uris.append(service.uri)
         return uris
 
@@ -932,7 +932,7 @@ class MasterInfo(object):
         '''
         if (suffix is None) or not suffix:
             return None
-        for name, node in self.__nodelist.items():
+        for name, node in list(self.__nodelist.items()):
             if name.endswith(suffix):
                 return node
         return None
@@ -1156,7 +1156,7 @@ class MasterInfo(object):
         nodes_last_check = set()
 
         # filter the topics
-        for name, topic in self.topics.items():
+        for name, topic in list(self.topics.items()):
             pn = []
             for n in topic.publisherNodes:
                 if not iffilter.is_ignored_publisher(n, name, topic.type):
@@ -1175,7 +1175,7 @@ class MasterInfo(object):
                 topicTypes.append((name, topic.type))
 
         # filter the services
-        for name, service in self.services.items():
+        for name, service in list(self.services.items()):
             srv_prov = []
             for sp in service.serviceProvider:
                 if not iffilter.is_ignored_service(sp, name):
@@ -1186,7 +1186,7 @@ class MasterInfo(object):
                 serviceProvider.append((name, service.uri, str(service.masteruri), service.type if service.type is not None else '', 'local' if service.isLocal else 'remote'))
 
         # creates the nodes list
-        for name, node in self.nodes.items():
+        for name, node in list(self.nodes.items()):
             if name in nodes_last_check:
                 nodes.append((name, node.uri, str(node.masteruri), node.pid, 'local' if node.isLocal else 'remote'))
 
@@ -1248,10 +1248,10 @@ class MasterInfo(object):
         # get local nodes from other
         own_remote_nodes = dict()
         other_local_nodes = dict()
-        for nodename, n in self.nodes.items():
+        for nodename, n in list(self.nodes.items()):
             if n.masteruri == other.masteruri or self.masteruri == other.masteruri:
                 own_remote_nodes[nodename] = n
-        for nodename, n in other.nodes.items():
+        for nodename, n in list(other.nodes.items()):
             if n.isLocal or self.masteruri == other.masteruri:
                 other_local_nodes[nodename] = n
         # remove nodes
@@ -1304,10 +1304,10 @@ class MasterInfo(object):
         # UPDATE SERVICES
         own_remote_srvs = dict()
         other_local_srvs = dict()
-        for srvname, s in self.services.items():
+        for srvname, s in list(self.services.items()):
             if s.masteruri == other.masteruri or self.masteruri == other.masteruri:
                 own_remote_srvs[srvname] = s
-        for srvname, s in other.services.items():
+        for srvname, s in list(other.services.items()):
             if s.isLocal or self.masteruri == other.masteruri:
                 other_local_srvs[srvname] = s
         own_remote_srvs_set = set(own_remote_srvs.keys())

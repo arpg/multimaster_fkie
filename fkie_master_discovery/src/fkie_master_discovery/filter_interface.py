@@ -101,7 +101,7 @@ class FilterInterface(object):
 
     def read_do_not_sync(self):
         _do_not_sync = get_ros_param('do_not_sync', [])
-        if isinstance(_do_not_sync, (str, unicode)):
+        if isinstance(_do_not_sync, str):
             # create a list from string
             _do_not_sync = _do_not_sync.strip('[').rstrip(']').replace(' ', ',').split(',')
             # remove empty values
@@ -363,7 +363,7 @@ class FilterInterface(object):
             return result
         except:
             import traceback
-            print traceback.format_exc()
+            print(traceback.format_exc())
         return None
 
 

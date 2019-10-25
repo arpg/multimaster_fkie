@@ -30,7 +30,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from __future__ import division, absolute_import, print_function, unicode_literals
+
 
 import random
 import roslib
@@ -39,7 +39,7 @@ import socket
 import threading
 import time
 import traceback
-import xmlrpclib
+import xmlrpc.client
 
 from fkie_multimaster_msgs.msg import SyncTopicInfo, SyncServiceInfo, SyncMasterInfo
 import rospy
@@ -254,7 +254,7 @@ class SyncThread(object):
         try:
             # connect to master_monitor rpc-xml server of remote master discovery
             socket.setdefaulttimeout(20)
-            remote_monitor = xmlrpclib.ServerProxy(self.monitoruri)
+            remote_monitor = xmlrpc.client.ServerProxy(self.monitoruri)
             # determine the getting method: older versions have not a filtered method
             if self._use_filtered_method is None:
                 try:
@@ -291,8 +291,8 @@ class SyncThread(object):
             serviceProviders = remote_state[9]
 
             # create a multicall object
-            own_master = xmlrpclib.ServerProxy(self.masteruri_local)
-            own_master_multi = xmlrpclib.MultiCall(own_master)
+            own_master = xmlrpc.client.ServerProxy(self.masteruri_local)
+            own_master_multi = xmlrpc.client.MultiCall(own_master)
             # fill the multicall object
             handler = []
             # sync the publishers
@@ -465,7 +465,7 @@ class SyncThread(object):
         try:
             # connect to master_monitor rpc-xml server of remote master discovery
             socket.setdefaulttimeout(20)
-            remote_monitor = xmlrpclib.ServerProxy(self.monitoruri)
+            remote_monitor = xmlrpc.client.ServerProxy(self.monitoruri)
             # determine the getting method: older versions have not a getTopicsMd5sum method
             if self._use_md5check_topics is None:
                 try:
@@ -528,8 +528,8 @@ class SyncThread(object):
             try:
                 rospy.logdebug("    SyncThread[%s] clear all registrations", self.name)
                 socket.setdefaulttimeout(5)
-                own_master = xmlrpclib.ServerProxy(self.masteruri_local)
-                own_master_multi = xmlrpclib.MultiCall(own_master)
+                own_master = xmlrpc.client.ServerProxy(self.masteruri_local)
+                own_master_multi = xmlrpc.client.MultiCall(own_master)
                 # end routine if the master was removed
                 for topic, node, uri in self.__subscriber:
                     own_master_multi.unregisterSubscriber(node, topic, uri)

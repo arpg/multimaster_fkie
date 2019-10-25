@@ -32,8 +32,8 @@
 
 import os
 import re
-import xmlrpclib
-from urlparse import urlparse
+import xmlrpc.client
+from urllib.parse import urlparse
 
 import roslib.names
 import rospy
@@ -127,7 +127,7 @@ def masteruri_from_master(from_env_on_error=False):
         if MASTERURI is None:
             masteruri = masteruri_from_ros()
             result = masteruri
-            master = xmlrpclib.ServerProxy(masteruri)
+            master = xmlrpc.client.ServerProxy(masteruri)
             code, _, MASTERURI = master.getUri(rospy.get_name())
             if code == 1:
                 result = MASTERURI

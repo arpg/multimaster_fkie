@@ -30,10 +30,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-from SimpleXMLRPCServer import SimpleXMLRPCServer
-from SocketServer import ThreadingMixIn
+from xmlrpc.server import SimpleXMLRPCServer
+from socketserver import ThreadingMixIn
 from datetime import datetime
-import cStringIO
+import io
 import roslib.network
 import roslib.message
 import rospy
@@ -42,9 +42,9 @@ import subprocess
 import threading
 import time
 import traceback
-import xmlrpclib
+import xmlrpc.client
 
-import interface_finder
+from . import interface_finder
 
 from .common import masteruri_from_ros, get_hostname
 from .filter_interface import FilterInterface
@@ -178,11 +178,11 @@ class MasterMonitor(object):
                 rospy.logwarn("Error while start RPC-XML server on port %d: %s\nTry again..." % (rpcport, e))
                 time.sleep(1)
             except:
-                print traceback.format_exc()
+                print(traceback.format_exc())
                 if not do_retry:
                     raise
 
-        self._master = xmlrpclib.ServerProxy(self.getMasteruri())
+        self._master = xmlrpc.client.ServerProxy(self.getMasteruri())
         # === UPDATE THE LAUNCH URIS Section ===
         # subscribe to get parameter updates
         rospy.loginfo("Subscribe to parameter `/roslaunch/uris`")
@@ -196,7 +196,7 @@ class MasterMonitor(object):
         # the new timer will be created in self._update_launch_uris()
         self._timer_update_launch_uris = None
         if code == 1:
-            for k, v in value.items():
+            for k, v in list(value.items()):
                 self.__launch_uris[roslib.names.ns_join('/roslaunch/uris', k)] = v
         self._update_launch_uris()
         # === END: UPDATE THE LAUNCH URIS Section ===
@@ -242,15 +242,15 @@ class MasterMonitor(object):
                 self.__launch_uris = params
             try:
                 socket.setdefaulttimeout(3.0)
-                for key, value in self.__launch_uris.items():
+                for key, value in list(self.__launch_uris.items()):
                     try:
                         # contact the launch server
-                        launch_server = xmlrpclib.ServerProxy(value)
+                        launch_server = xmlrpc.client.ServerProxy(value)
                         c, m, pid = launch_server.get_pid()
                     except:
                         try:
                             # remove the parameter from parameter server on error
-                            master = xmlrpclib.ServerProxy(self.getMasteruri())
+                            master = xmlrpc.client.ServerProxy(self.getMasteruri())
                             master.deleteParam(self.ros_node_name, key)
                         except:
                             pass
@@ -274,7 +274,7 @@ class MasterMonitor(object):
 
         :type uri: str
         '''
-        for (nodename, uri) in nodes.items():
+        for (nodename, uri) in list(nodes.items()):
             if uri is not None:
                 pid = None
                 try:
@@ -283,12 +283,12 @@ class MasterMonitor(object):
                             if time.time() - self.__cached_nodes[nodename][2] < self.MAX_PING_SEC:
                                 return
                     socket.setdefaulttimeout(0.7)
-                    node = xmlrpclib.ServerProxy(uri)
+                    node = xmlrpc.client.ServerProxy(uri)
                     pid = _succeed(node.getPid(self.ros_node_name))
                 except (Exception, socket.error) as e:
                     with self._lock:
                         self._limited_log(nodename, "can't get PID: %s" % str(e), level=rospy.DEBUG)
-                    master = xmlrpclib.ServerProxy(self.getMasteruri())
+                    master = xmlrpc.client.ServerProxy(self.getMasteruri())
                     code, message, new_uri = master.lookupNode(self.ros_node_name, nodename)
                     with self._lock:
                         self.__new_master_state.getNode(nodename).uri = None if (code == -1) else new_uri
@@ -319,7 +319,7 @@ class MasterMonitor(object):
 
         :type uri: str
         '''
-        for (service, uri) in services.items():
+        for (service, uri) in list(services.items()):
             with self._lock:
                 if service in self.__cached_services:
                     if time.time() - self.__cached_services[service][2] < self.MAX_PING_SEC:
@@ -339,7 +339,7 @@ class MasterMonitor(object):
                     header = {'probe': '1', 'md5sum': '*',
                               'callerid': self.ros_node_name, 'service': service}
                     roslib.network.write_ros_handshake_header(s, header)
-                    stype = roslib.network.read_ros_handshake_header(s, cStringIO.StringIO(), 2048)
+                    stype = roslib.network.read_ros_handshake_header(s, io.StringIO(), 2048)
                     with self._lock:
                         self.__new_master_state.getService(service).type = stype['type']
                         self.__cached_services[service] = (uri, stype['type'], time.time())
@@ -376,7 +376,7 @@ class MasterMonitor(object):
                 with self._state_access_lock:
                     result = self.__master_state.listedState()
             except:
-                print traceback.format_exc()
+                print(traceback.format_exc())
         return result
 
     def getListedMasterInfoFiltered(self, filter_list):
@@ -392,7 +392,7 @@ class MasterMonitor(object):
                 with self._state_access_lock:
                     result = self.__master_state.listedState(FilterInterface.from_list(filter_list))
             except:
-                print traceback.format_exc()
+                print(traceback.format_exc())
         return result
 
     def getCurrentState(self):
@@ -462,7 +462,7 @@ class MasterMonitor(object):
                 services = dict()
                 tmp_slist = []
                 # multi-call style xmlrpc to lock up the service uri
-                param_server_multi = xmlrpclib.MultiCall(master)
+                param_server_multi = xmlrpc.client.MultiCall(master)
                 for t, l in state[2]:
                     master_state.services = t
                     for n in l:
@@ -500,9 +500,9 @@ class MasterMonitor(object):
                 nodes = dict()
                 try:
                     # multi-call style xmlrpc to loock up the node uri
-                    param_server_multi = xmlrpclib.MultiCall(master)
+                    param_server_multi = xmlrpc.client.MultiCall(master)
                     tmp_nlist = []
-                    for name, node in master_state.nodes.items():
+                    for name, node in list(master_state.nodes.items()):
                         if node.name in self.__cached_nodes:
                             node.uri = self.__cached_nodes[node.name][0]
                             node.pid = self.__cached_nodes[node.name][1]
@@ -532,7 +532,7 @@ class MasterMonitor(object):
                     threads.append(pidThread)
 
                 master_state.timestamp = now
-            except socket.error, e:
+            except socket.error as e:
                 if isinstance(e, tuple):
                     (errn, msg) = e
                     if errn not in [100, 101, 102]:
@@ -576,8 +576,8 @@ class MasterMonitor(object):
 
     def _clearup_cached_logs(self, age=300):
         cts = time.time()
-        for p, msgs in self._printed_errors.items():
-            for msg, ts in msgs.items():
+        for p, msgs in list(self._printed_errors.items()):
+            for msg, ts in list(msgs.items()):
                 if cts - ts > age:
                     del self._printed_errors[p][msg]
             if not self._printed_errors[p]:
@@ -610,14 +610,14 @@ class MasterMonitor(object):
             sync_info = None
             # get synchronization info, if sync node is running
             # to determine the origin ROS MASTER URI of the nodes
-            for name, service in master_state.services.items():
+            for name, service in list(master_state.services.items()):
                 if service.name.endswith('get_sync_info'):
                     if get_hostname(self.getMasteruri()) == get_hostname(service.uri):
                         socket.setdefaulttimeout(3)
                         get_sync_info = rospy.ServiceProxy(service.name, GetSyncInfo)
                         try:
                             sync_info = get_sync_info()
-                        except rospy.ServiceException, e:
+                        except rospy.ServiceException as e:
                             rospy.logwarn("ERROR Service call 'get_sync_info' failed: %s", str(e))
                         finally:
                             socket.setdefaulttimeout(None)
@@ -654,7 +654,7 @@ class MasterMonitor(object):
         '''
         code = -1
         if self.__masteruri_rpc is None:
-            master = xmlrpclib.ServerProxy(self.__masteruri)
+            master = xmlrpc.client.ServerProxy(self.__masteruri)
             code, message, self.__masteruri_rpc = master.getUri(self.ros_node_name)
         return self.__masteruri_rpc if code >= 0 or self.__masteruri_rpc is not None else self.__masteruri
 
@@ -671,7 +671,7 @@ class MasterMonitor(object):
             try:
                 self.__mastername = get_hostname(self.getMasteruri())
                 try:
-                    from urlparse import urlparse
+                    from urllib.parse import urlparse
                     master_port = urlparse(self.__masteruri).port
                     if master_port != 11311:
                         self.__mastername = '%s_%d' % (self.__mastername, master_port)
